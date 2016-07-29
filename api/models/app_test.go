@@ -1,10 +1,13 @@
 package models_test
 
 import (
+	"encoding/json"
+	"log"
 	"os"
 	"testing"
 
 	"github.com/convox/rack/api/models"
+	"github.com/convox/rack/manifest"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -45,4 +48,55 @@ func TestAppStackName(t *testing.T) {
 	}
 
 	assert.Equal(t, "convox-test-httpd", a.StackName())
+}
+
+func TestAppFormation(t *testing.T) {
+	a := models.App{
+		Name: "testerness",
+	}
+
+	m := manifest.Manifest{
+		Services: map[string]manifest.Service{
+			"api": manifest.Service{
+				Name: "api",
+				Ports: []manifest.Port{
+					manifest.Port{
+						Balancer:  80,
+						Container: 3000,
+						Public:    true,
+					},
+				},
+			},
+		},
+	}
+
+	res := map[string]interface{}{}
+
+	f, err := a.Formation(m)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	err = json.Unmarshal([]byte(f), &res)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	resources := res["Resources"].(map[string]interface{})
+	// outputs := res["Outputs"].(map[string]interface{})
+	// parameters := res["Parameters"].(map[string]interface{})
+	// conditions := res["Conditions"].(map[string]interface{})
+	// mappings := res["Mappings"].(map[string]interface{})
+
+	balancer := resources["BalancerApi"].(map[string]interface{})
+	balancerProps := balancer["Properties"].(map[string]interface{})
+	listeners := balancerProps["Listeners"].([]interface{})
+
+	assert.Equal(t, balancer["Type"], "AWS::ElasticLoadBalancing::LoadBalancer")
+	assert.Equal(t, balancer["Condition"], "EnabledApi")
+	assert.Equal(t, len(listeners), 2)
+
+	log.Printf("%#v", listeners[0])
 }
