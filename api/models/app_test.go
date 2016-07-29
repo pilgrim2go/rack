@@ -2,6 +2,7 @@ package models_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"testing"
@@ -98,5 +99,16 @@ func TestAppFormation(t *testing.T) {
 	assert.Equal(t, balancer["Condition"], "EnabledApi")
 	assert.Equal(t, len(listeners), 2)
 
-	log.Printf("%#v", listeners[0])
+	apiBalancer := listeners[0].(map[string]interface{})
+	byts, err := json.Marshal(apiBalancer)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	fmt.Println(string(byts))
+
+	for k, v := range listeners[0].(map[string]interface{})["Fn::If"].([]interface{}) {
+		log.Print(k)
+		log.Print(v)
+	}
 }
