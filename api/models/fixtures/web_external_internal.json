@@ -378,13 +378,7 @@
             "Ref": "AWS::NoValue"
           }
         ],
-        "Scheme": {
-          "Fn::If": [
-            "Internal",
-            "internal",
-            "internal"
-          ]
-        },
+        "Scheme": "internal",
         "SecurityGroups": [
           {
             "Fn::If": [

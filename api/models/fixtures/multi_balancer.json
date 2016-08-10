@@ -414,7 +414,7 @@
         ],
         "Subnets": {
           "Fn::If": [
-            "Private",
+            "Internal",
             {
               "Ref": "SubnetsPrivate"
             },
@@ -554,7 +554,7 @@
         ],
         "Subnets": {
           "Fn::If": [
-            "Private",
+            "Internal",
             {
               "Ref": "SubnetsPrivate"
             },

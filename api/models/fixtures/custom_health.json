@@ -402,7 +402,7 @@
         ],
         "Subnets": {
           "Fn::If": [
-            "Private",
+            "Internal",
             {
               "Ref": "SubnetsPrivate"
             },
