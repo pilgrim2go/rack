@@ -1,20 +1,12 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
   "Conditions": {
-    "BalancerWebPort3000Proxy": {
+    "BlankBalancerWebPort3000Certificate": {
       "Fn::Equals": [
         {
-          "Ref": "WebPort3000Proxy"
+          "Ref": "WebPort3000Certificate"
         },
-        "Yes"
-      ]
-    },
-    "BalancerWebPort3000Secure": {
-      "Fn::Equals": [
-        {
-          "Ref": "WebPort3000Secure"
-        },
-        "Yes"
+        ""
       ]
     },
     "BlankPostgresService": {
@@ -69,6 +61,14 @@
             "-1"
           ]
         }
+      ]
+    },
+    "Internal": {
+      "Fn::Equals": [
+        {
+          "Ref": "Internal"
+        },
+        "Yes"
       ]
     },
     "Private": {
@@ -169,9 +169,7 @@
     },
     "WebPort3000Balancer": {
       "Condition": "EnabledWeb",
-      "Value": {
-        "Ref": "WebPort3000Balancer"
-      }
+      "Value": "3000"
     },
     "WebPort3000BalancerName": {
       "Condition": "EnabledWeb",
@@ -199,6 +197,15 @@
       "Description": "",
       "Type": "String"
     },
+    "Internal": {
+      "AllowedValues": [
+        "Yes",
+        "No"
+      ],
+      "Default": "No",
+      "Description": "Only allow access to this app from inside the VPC",
+      "Type": "String"
+    },
     "Key": {
       "Default": "",
       "Description": "",
@@ -215,7 +222,7 @@
         "No"
       ],
       "Default": "No",
-      "Description": "Create internal load balancers in private subnets",
+      "Description": "Use SubnetsPrivate to specify VPC-side load balancer endpoints",
       "Type": "String"
     },
     "Release": {
@@ -263,11 +270,6 @@
       "Description": "Number of processes to run, CPU units to reserve, and MB of RAM to reserve",
       "Type": "CommaDelimitedList"
     },
-    "WebPort3000Balancer": {
-      "Default": "3000",
-      "Description": "",
-      "Type": "String"
-    },
     "WebPort3000Certificate": {
       "Default": "",
       "Description": "",
@@ -275,35 +277,6 @@
     },
     "WebPort3000Host": {
       "Default": "5000",
-      "Description": "",
-      "Type": "String"
-    },
-    "WebPort3000Protocol": {
-      "AllowedValues": [
-        "http",
-        "https",
-        "tcp",
-        "tls"
-      ],
-      "Default": "tls",
-      "Description": "",
-      "Type": "String"
-    },
-    "WebPort3000Proxy": {
-      "AllowedValues": [
-        "Yes",
-        "No"
-      ],
-      "Default": "No",
-      "Description": "",
-      "Type": "String"
-    },
-    "WebPort3000Secure": {
-      "AllowedValues": [
-        "Yes",
-        "No"
-      ],
-      "Default": "No",
       "Description": "",
       "Type": "String"
     }
@@ -330,34 +303,9 @@
             "Fn::Join": [
               "",
               [
+                "TCP:",
                 {
-                  "Fn::Join": [
-                    ":",
-                    [
-                      {
-                        "Fn::If": [
-                          "BalancerWebPort3000Secure",
-                          {
-                            "Fn::FindInMap": [
-                              "PortProtocol",
-                              "tcp",
-                              "SecureInstanceProtocol"
-                            ]
-                          },
-                          {
-                            "Fn::FindInMap": [
-                              "PortProtocol",
-                              "tcp",
-                              "InstanceProtocol"
-                            ]
-                          }
-                        ]
-                      },
-                      {
-                        "Ref": "WebPort3000Host"
-                      }
-                    ]
-                  ]
+                  "Ref": "WebPort3000Host"
                 },
                 ""
               ]
@@ -373,67 +321,29 @@
         ],
         "Listeners": [
           {
-            "Fn::If": [
-              "BalancerWebPort3000Secure",
-              {
-                "InstancePort": {
-                  "Ref": "WebPort3000Host"
+            "InstancePort": {
+              "Ref": "WebPort3000Host"
+            },
+            "InstanceProtocol": "TCP",
+            "LoadBalancerPort": "3000",
+            "Protocol": {
+              "Fn::If": [
+                "BlankBalancerWebPort3000Certificate",
+                "TCP",
+                "SSL"
+              ]
+            },
+            "SSLCertificateId": {
+              "Fn::If": [
+                "BlankBalancerWebPort3000Certificate",
+                {
+                  "Ref": "AWS::NoValue"
                 },
-                "InstanceProtocol": {
-                  "Fn::FindInMap": [
-                    "PortProtocol",
-                    {
-                      "Ref": "WebPort3000Protocol"
-                    },
-                    "SecureInstanceProtocol"
-                  ]
-                },
-                "LoadBalancerPort": {
-                  "Ref": "WebPort3000Balancer"
-                },
-                "Protocol": {
-                  "Fn::FindInMap": [
-                    "PortProtocol",
-                    {
-                      "Ref": "WebPort3000Protocol"
-                    },
-                    "ListenerProtocol"
-                  ]
-                },
-                "SSLCertificateId": {
+                {
                   "Ref": "WebPort3000Certificate"
                 }
-              },
-              {
-                "InstancePort": {
-                  "Ref": "WebPort3000Host"
-                },
-                "InstanceProtocol": {
-                  "Fn::FindInMap": [
-                    "PortProtocol",
-                    {
-                      "Ref": "WebPort3000Protocol"
-                    },
-                    "InstanceProtocol"
-                  ]
-                },
-                "LoadBalancerPort": {
-                  "Ref": "WebPort3000Balancer"
-                },
-                "Protocol": {
-                  "Fn::FindInMap": [
-                    "PortProtocol",
-                    {
-                      "Ref": "WebPort3000Protocol"
-                    },
-                    "ListenerProtocol"
-                  ]
-                },
-                "SSLCertificateId": {
-                  "Ref": "WebPort3000Certificate"
-                }
-              }
-            ]
+              ]
+            }
           },
           {
             "Ref": "AWS::NoValue"
@@ -442,33 +352,16 @@
         "LoadBalancerName": "httpd-web-XHW5F4P-i",
         "Policies": [
           {
-            "Fn::If": [
-              "BalancerWebPort3000Proxy",
-              {
-                "Attributes": [
-                  {
-                    "Name": "ProxyProtocol",
-                    "Value": "true"
-                  }
-                ],
-                "InstancePorts": [
-                  {
-                    "Ref": "WebPort3000Host"
-                  }
-                ],
-                "PolicyName": "EnableProxyProtocol",
-                "PolicyType": "ProxyProtocolPolicyType"
-              },
-              {
-                "Ref": "AWS::NoValue"
-              }
-            ]
-          },
-          {
             "Ref": "AWS::NoValue"
           }
         ],
-        "Scheme": "internal",
+        "Scheme": {
+          "Fn::If": [
+            "Internal",
+            "internal",
+            "internal"
+          ]
+        },
         "SecurityGroups": [
           {
             "Fn::If": [
@@ -515,13 +408,9 @@
             "CidrIp": {
               "Ref": "VPCCIDR"
             },
-            "FromPort": {
-              "Ref": "WebPort3000Balancer"
-            },
+            "FromPort": "3000",
             "IpProtocol": "tcp",
-            "ToPort": {
-              "Ref": "WebPort3000Balancer"
-            }
+            "ToPort": "3000"
           },
           {
             "Ref": "AWS::NoValue"
@@ -721,6 +610,11 @@
                   "PROCESS": "postgres",
                   "RACK": "convox-test"
                 },
+                "ExtraHosts": [
+                  {
+                    "Ref": "AWS::NoValue"
+                  }
+                ],
                 "Image": "mdillon/postgis",
                 "Memory": {
                   "Fn::Select": [
@@ -956,6 +850,11 @@
                   "PROCESS": "web",
                   "RACK": "convox-test"
                 },
+                "ExtraHosts": [
+                  {
+                    "Ref": "AWS::NoValue"
+                  }
+                ],
                 "Image": "",
                 "Memory": {
                   "Fn::Select": [
